@@ -235,6 +235,7 @@ class BrowserCaptchaService:
             os.makedirs(self.user_data_dir, exist_ok=True)
 
             browser_executable_path = os.environ.get("BROWSER_EXECUTABLE_PATH", "").strip() or None
+            profile_directory = os.environ.get("BROWSER_PROFILE_DIRECTORY", "").strip() or "Default"
             if browser_executable_path:
                 debug_logger.log_info(
                     f"[BrowserCaptcha] 使用指定浏览器可执行文件: {browser_executable_path}"
@@ -252,7 +253,7 @@ class BrowserCaptchaService:
                     '--disable-setuid-sandbox',
                     '--disable-gpu',
                     '--window-size=1280,720',
-                    '--profile-directory=Default',  # 跳过 Profile 选择器页面
+                    f'--profile-directory={profile_directory}',  # 跳过 Profile 选择器页面
                 ]
             )
 

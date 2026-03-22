@@ -52,6 +52,7 @@ class NormalizedGenerationRequest:
     model: str
     prompt: str
     images: List[bytes]
+    project_id: Optional[str] = None
     messages: Optional[List[ChatMessage]] = None
 
 
@@ -350,6 +351,7 @@ async def _normalize_openai_request(
             model=model,
             prompt=prompt,
             images=images,
+            project_id=request.project_id,
             messages=request.messages,
         )
 
@@ -359,6 +361,7 @@ async def _normalize_openai_request(
             generationConfig=request.generationConfig,
         )
         normalized = await _normalize_gemini_request(request.model, gemini_request)
+        normalized.project_id = request.project_id
         normalized.messages = request.messages
         return normalized
 
@@ -378,6 +381,7 @@ async def _normalize_gemini_request(
         model=_resolve_request_model(model, request),
         prompt=prompt,
         images=images,
+        project_id=request.project_id,
     )
 
 
@@ -385,6 +389,7 @@ async def _collect_non_stream_result(
     model: str,
     prompt: str,
     images: List[bytes],
+    project_id: Optional[str] = None,
 ) -> str:
     handler = _ensure_generation_handler()
     result = None
@@ -392,6 +397,7 @@ async def _collect_non_stream_result(
         model=model,
         prompt=prompt,
         images=images if images else None,
+        project_id=project_id,
         stream=False,
     ):
         result = chunk
@@ -591,6 +597,7 @@ async def _iterate_openai_stream(
         model=normalized.model,
         prompt=normalized.prompt,
         images=normalized.images if normalized.images else None,
+        project_id=normalized.project_id,
         stream=True,
     ):
         if chunk.startswith("data: "):
@@ -612,6 +619,7 @@ async def _iterate_gemini_stream(
         model=normalized.model,
         prompt=normalized.prompt,
         images=normalized.images if normalized.images else None,
+        project_id=normalized.project_id,
         stream=True,
     ):
         if chunk.startswith("data: "):
@@ -737,6 +745,7 @@ async def create_chat_completion(
                 normalized.model,
                 normalized.prompt,
                 normalized.images,
+                normalized.project_id,
             )
         )
         return _build_openai_json_response(payload)
@@ -765,6 +774,7 @@ async def generate_content(
                 normalized.model,
                 normalized.prompt,
                 normalized.images,
+                normalized.project_id,
             )
         )
         if "error" in payload:

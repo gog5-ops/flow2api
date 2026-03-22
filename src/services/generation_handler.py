@@ -753,6 +753,7 @@ class GenerationHandler:
         model: str,
         prompt: str,
         images: Optional[List[bytes]] = None,
+        project_id: Optional[str] = None,
         stream: bool = False
     ) -> AsyncGenerator:
         """统一生成入口
@@ -904,15 +905,16 @@ class GenerationHandler:
                 return
 
             ensure_project_started_at = time.time()
-            project_id = await self.token_manager.ensure_project_exists(token.id)
+            actual_project_id = project_id or await self.token_manager.ensure_project_exists(token.id)
             perf_trace["ensure_project_ms"] = int((time.time() - ensure_project_started_at) * 1000)
-            debug_logger.log_info(f"[GENERATION] Project ID: {project_id}")
+            perf_trace["project_id"] = actual_project_id
+            debug_logger.log_info(f"[GENERATION] Project ID: {actual_project_id}")
             await self._update_request_log_progress(
                 request_log_state,
                 token_id=token.id,
                 status_text="project_ready",
                 progress=22,
-                response_extra={"project_id": project_id},
+                response_extra={"project_id": actual_project_id},
             )
 
             # 5. 根据类型处理
@@ -920,7 +922,7 @@ class GenerationHandler:
             if generation_type == "image":
                 debug_logger.log_info(f"[GENERATION] 开始图片生成流程...")
                 async for chunk in self._handle_image_generation(
-                    token, project_id, model_config, prompt, images, stream,
+                    token, actual_project_id, model_config, prompt, images, stream,
                     perf_trace=perf_trace,
                     generation_result=generation_result,
                     request_log_state=request_log_state,
@@ -930,7 +932,7 @@ class GenerationHandler:
             else:  # video
                 debug_logger.log_info(f"[GENERATION] 开始视频生成流程...")
                 async for chunk in self._handle_video_generation(
-                    token, project_id, model_config, prompt, images, stream,
+                    token, actual_project_id, model_config, prompt, images, stream,
                     perf_trace=perf_trace,
                     generation_result=generation_result,
                     request_log_state=request_log_state,
@@ -1126,6 +1128,7 @@ class GenerationHandler:
             # 上传图片 (如果有)
             upload_started_at = time.time()
             image_inputs = []
+            uploaded_input_media_ids = []
             if images and len(images) > 0:
                 if stream:
                     yield self._create_stream_chunk(f"上传 {len(images)} 张参考图片...\n")
@@ -1138,6 +1141,7 @@ class GenerationHandler:
                         model_config["aspect_ratio"],
                         project_id=project_id
                     )
+                    uploaded_input_media_ids.append(media_id)
                     image_inputs.append({
                         "name": media_id,
                         "imageInputType": "IMAGE_INPUT_TYPE_REFERENCE"
@@ -1200,7 +1204,9 @@ class GenerationHandler:
             media_id = media[0].get("name")  # 用于 upsample
             self._last_generation_assets = {
                 "type": "image",
-                "origin_image_url": image_url
+                "origin_image_url": image_url,
+                "input_media_ids": uploaded_input_media_ids,
+                "media_id": media_id,
             }
 
             # 检查是否需要 upsample
@@ -1239,6 +1245,8 @@ class GenerationHandler:
                             self._last_generation_assets = {
                                 "type": "image",
                                 "origin_image_url": image_url,
+                                "input_media_ids": uploaded_input_media_ids,
+                                "media_id": media_id,
                                 "upscaled_image": {
                                     "resolution": resolution_name,
                                     "base64": encoded_image
@@ -1269,7 +1277,8 @@ class GenerationHandler:
                                     else:
                                         yield self._create_completion_response(
                                             local_url,
-                                            media_type="image"
+                                            media_type="image",
+                                            extra_data={"generated_assets": self._last_generation_assets}
                                         )
                                     if image_trace is not None:
                                         image_trace["upsample_ms"] = int((time.time() - upsample_started_at) * 1000)
@@ -1293,7 +1302,8 @@ class GenerationHandler:
                             else:
                                 yield self._create_completion_response(
                                     base64_url,
-                                    media_type="image"
+                                    media_type="image",
+                                    extra_data={"generated_assets": self._last_generation_assets}
                                 )
                             if image_trace is not None:
                                 image_trace["upsample_ms"] = int((time.time() - upsample_started_at) * 1000)
@@ -1336,7 +1346,9 @@ class GenerationHandler:
             self._last_generation_assets = {
                 "type": "image",
                 "origin_image_url": image_url,
-                "final_image_url": local_url
+                "input_media_ids": uploaded_input_media_ids,
+                "final_image_url": local_url,
+                "media_id": media_id,
             }
             self._mark_generation_succeeded(generation_result)
 
@@ -1348,7 +1360,8 @@ class GenerationHandler:
             else:
                 yield self._create_completion_response(
                     local_url,  # 直接传URL,让方法内部格式化
-                    media_type="image"
+                    media_type="image",
+                    extra_data={"generated_assets": self._last_generation_assets}
                 )
 
         finally:
@@ -1771,7 +1784,8 @@ class GenerationHandler:
                     else:
                         yield self._create_completion_response(
                             local_url,  # 直接传URL,让方法内部格式化
-                            media_type="video"
+                            media_type="video",
+                            extra_data={"generated_assets": self._last_generation_assets}
                         )
                     return
 
@@ -1855,7 +1869,13 @@ class GenerationHandler:
 
         return f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
 
-    def _create_completion_response(self, content: str, media_type: str = "image", is_availability_check: bool = False) -> str:
+    def _create_completion_response(
+        self,
+        content: str,
+        media_type: str = "image",
+        is_availability_check: bool = False,
+        extra_data: Optional[Dict[str, Any]] = None
+    ) -> str:
         """创建非流式响应
 
         Args:
@@ -1893,6 +1913,9 @@ class GenerationHandler:
                 "finish_reason": "stop"
             }]
         }
+
+        if isinstance(extra_data, dict) and extra_data:
+            response.update(extra_data)
 
         return json.dumps(response, ensure_ascii=False)
 

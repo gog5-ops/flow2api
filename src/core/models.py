@@ -266,6 +266,7 @@ class GeminiGenerateContentRequest(BaseModel):
     """Gemini official generateContent request."""
 
     contents: List[GeminiContent]
+    project_id: Optional[str] = None
     generationConfig: Optional[GenerationConfigParam] = None
     systemInstruction: Optional[GeminiContent] = None
 
@@ -276,6 +277,7 @@ class ChatCompletionRequest(BaseModel):
     """Chat completion request (OpenAI compatible + Gemini extension)"""
 
     model: str
+    project_id: Optional[str] = None
     messages: Optional[List[ChatMessage]] = None
     stream: bool = False
     temperature: Optional[float] = None

@@ -284,7 +284,10 @@ class TokenManager:
             at_expires_aware = token.at_expires
 
         time_until_expiry = at_expires_aware - now
-        if time_until_expiry.total_seconds() < 3600:
+        # Keep using still-valid ATs until they are close to expiry.
+        # In practice, aggressively refreshing an hour early can disable
+        # otherwise usable tokens when ST refresh is temporarily unavailable.
+        if time_until_expiry.total_seconds() < 300:
             debug_logger.log_info(
                 f"[AT_CHECK] Token {token.id}: AT即将过期 "
                 f"(剩余 {time_until_expiry.total_seconds():.0f} 秒),需要刷新"
@@ -302,6 +305,11 @@ class TokenManager:
             return token
 
         if not await self._refresh_at(token.id):
+            if token.at:
+                debug_logger.log_warning(
+                    f"[AT_CHECK] Token {token.id}: refresh failed, falling back to existing AT for this request"
+                )
+                return token
             return None
 
         return await self.db.get_token(token.id)
@@ -340,8 +348,9 @@ class TokenManager:
                 if result:
                     return True
 
-            debug_logger.log_error(f"[AT_REFRESH] Token {token_id}: all refresh attempts failed, disabling token")
-            await self.disable_token(token_id)
+            debug_logger.log_error(
+                f"[AT_REFRESH] Token {token_id}: all refresh attempts failed, keeping current token state for caller fallback"
+            )
             return False
 
     async def _refresh_at(self, token_id: int) -> bool:
