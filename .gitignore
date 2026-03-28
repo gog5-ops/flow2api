@@ -56,6 +56,10 @@ logs.txt
 
 browser_data
 browser_data_rt
+tools/remote_browser_bridge/browser_data/
+tools/remote_browser_bridge/bridge_api_key.txt
+tools/remote_browser_bridge/token_cache.json
+tools/remote_browser_bridge/.uv-cache/
 
 data
 tmp/
