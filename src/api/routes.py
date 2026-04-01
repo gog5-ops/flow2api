@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from ..core.auth import verify_api_key_flexible
+from ..core.config import config
 from ..core.logger import debug_logger
 from ..core.model_resolver import get_base_model_aliases, resolve_model_name
 from ..core.models import (
@@ -76,6 +77,42 @@ def _build_model_description(model_config: Dict[str, Any]) -> str:
     else:
         description += f" - {model_config['model_key']}"
     return description
+
+
+def _build_provider_user_info() -> Dict[str, Any]:
+    return {
+        "object": "user",
+        "id": "flow2api",
+        "name": "Flow2API",
+        "email": None,
+        "provider": "flow2api",
+        "capabilities": ["models", "chat.completions"],
+        "remote_browser_enabled": bool((config.remote_browser_base_url or "").strip()),
+    }
+
+
+def _build_provider_credit_grants() -> Dict[str, Any]:
+    return {
+        "object": "list",
+        "total_available": 0,
+        "total_granted": 0,
+        "total_used": 0,
+        "currency": "credits",
+        "grants": {
+            "object": "list",
+            "data": [],
+        },
+    }
+
+
+def _build_provider_credits() -> Dict[str, Any]:
+    return {
+        "object": "credits",
+        "provider": "flow2api",
+        "balance": 0,
+        "currency": "credits",
+        "credit_grants": _build_provider_credit_grants(),
+    }
 
 
 def _get_openai_model_catalog() -> List[Dict[str, str]]:
@@ -670,6 +707,27 @@ async def list_models(api_key: str = Depends(verify_api_key_flexible)):
     ]
 
     return {"object": "list", "data": models}
+
+
+@router.get("/credits")
+@router.get("/v1/credits")
+async def get_provider_credits(api_key: str = Depends(verify_api_key_flexible)):
+    """Compatibility endpoint for provider UIs that probe credit metadata."""
+    return _build_provider_credits()
+
+
+@router.get("/user/info")
+@router.get("/v1/user/info")
+async def get_provider_user_info(api_key: str = Depends(verify_api_key_flexible)):
+    """Compatibility endpoint for provider UIs that probe user metadata."""
+    return _build_provider_user_info()
+
+
+@router.get("/dashboard/billing/credit_grants")
+@router.get("/v1/dashboard/billing/credit_grants")
+async def get_provider_credit_grants(api_key: str = Depends(verify_api_key_flexible)):
+    """Compatibility endpoint for provider UIs that probe billing grants."""
+    return _build_provider_credit_grants()
 
 
 @router.get("/v1/models/aliases")

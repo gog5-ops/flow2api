@@ -4,7 +4,7 @@
 
 param (
     [Parameter(Mandatory=$true)]
-    [ValidateSet("Discover", "Status", "CPU", "ChromeDebugInfo", "ChromeDebugAccess", "StartChromeDebugTunnel", "SetupHeadedChromeRemote", "StartChromeWebTunnel", "DeployFlow2APITokenUpdater", "CheckFlow2APITokenSync", "InspectFlow2APITokenState", "SyncFlow2APITokenManager", "SyncFlow2APIProjectBoundRuntime", "RefreshFlow2APIToken", "EnableFlow2APITokens", "SelectFlow2APIToken", "SetFlow2APIPersonalMode", "SetFlow2APIRemoteBrowserMode", "SetupRemoteBrowserHostProxy", "DisableRemoteBrowserHostProxy", "CheckRemoteBrowserTunnelListener", "CheckRemoteBrowserHostProxyListener", "CheckRemoteBrowserBridgeHealth", "CheckRemoteBrowserBridgeConfig", "CheckRemoteBrowserBridge", "SmokeTestFlow2API", "SmokeTestFlow2APIImg2Img", "SmokeTestFlow2APIVideo", "SmokeTestFlow2APIMatrix", "GenerateFlow2APITreeImages", "GenerateFlow2APICatAlienVideo", "HTTPCheck", "CheckFlow2API", "CheckFlow2APIEgress", "ConfigureFlow2APIResidentialProxy", "GetFlow2APIPluginConfig", "Connect", "InstallChrome", "SetupProxy", "DeployOpenClaw", "StartOpenClaw", "FixUIAuth", "SetupBackup", "BackupManual", "DeploySub2API", "DeployFlow2API", "RestartGrok", "RestartSub")]
+    [ValidateSet("Discover", "Status", "CPU", "ChromeDebugInfo", "ChromeDebugAccess", "StartChromeDebugTunnel", "SetupHeadedChromeRemote", "StartChromeWebTunnel", "DeployFlow2APITokenUpdater", "CheckFlow2APITokenSync", "InspectFlow2APITokenState", "SyncFlow2APITokenManager", "SyncFlow2APIProjectBoundRuntime", "RefreshFlow2APIToken", "EnableFlow2APITokens", "SelectFlow2APIToken", "SetFlow2APIPersonalMode", "SetFlow2APIRemoteBrowserMode", "SetupRemoteBrowserHostProxy", "DisableRemoteBrowserHostProxy", "CheckRemoteBrowserTunnelListener", "CheckRemoteBrowserHostProxyListener", "CheckRemoteBrowserBridgeHealth", "CheckRemoteBrowserBridgeConfig", "CheckRemoteBrowserBridge", "SmokeTestFlow2API", "SmokeTestFlow2APIImg2Img", "SmokeTestFlow2APIVideo", "SmokeTestFlow2APIMatrix", "GenerateFlow2APITreeImages", "GenerateFlow2APICatAlienVideo", "HTTPCheck", "CheckFlow2API", "CheckFlow2APIEgress", "ConfigureFlow2APIResidentialProxy", "GetFlow2APIPluginConfig", "GetFlow2APIProviderConfig", "Connect", "InstallChrome", "SetupProxy", "DeployOpenClaw", "StartOpenClaw", "FixUIAuth", "SetupBackup", "BackupManual", "DeploySub2API", "DeployFlow2API", "RestartGrok", "RestartSub")]
     [string]$Action,
 
     [string]$Project = "sfanime",
@@ -313,6 +313,15 @@ function Get-Flow2APIPluginConfig {
     Resolve-VMZone | Out-Null
     gcloud compute scp "d:\aitools\gcpvm\flow2api_get_plugin_config.py" "${Instance}:/tmp/flow2api_get_plugin_config.py" --zone=$Zone --project=$Project
     Invoke-VMCommand "python3 /tmp/flow2api_get_plugin_config.py http://127.0.0.1:38000 admin admin"
+}
+
+function Get-Flow2APIProviderConfig {
+    Write-Host "Fetching Flow2API provider config..." -ForegroundColor Yellow
+    Resolve-VMZone | Out-Null
+    $natIp = Get-VMNatIP
+    $publicBaseUrl = "http://${natIp}:38000"
+    gcloud compute scp "d:\aitools\flow2api\scripts\vm\flow2api_get_provider_config.py" "${Instance}:/tmp/flow2api_get_provider_config.py" --zone=$Zone --project=$Project
+    Invoke-VMCommand "cd $Flow2APIDir && python3 /tmp/flow2api_get_provider_config.py http://127.0.0.1:38000 admin admin $publicBaseUrl"
 }
 
 function Check-Flow2APITokenSync {
@@ -687,6 +696,7 @@ switch ($Action) {
     "CheckFlow2APIEgress" { Check-Flow2APIEgress }
     "ConfigureFlow2APIResidentialProxy" { Configure-Flow2APIResidentialProxy }
     "GetFlow2APIPluginConfig" { Get-Flow2APIPluginConfig }
+    "GetFlow2APIProviderConfig" { Get-Flow2APIProviderConfig }
     "Connect"      { Connect-VM }
     "InstallChrome" { Install-Chrome }
     "SetupProxy"   { Setup-V2Ray }

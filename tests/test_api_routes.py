@@ -2,7 +2,8 @@ import asyncio
 import json
 
 from src.api import routes
-from src.core.auth import AuthManager, verify_api_key_flexible
+from src.core.auth import AuthManager, get_provider_api_key_alias, verify_api_key_flexible
+from src.core.config import config
 
 
 def build_openai_completion(content: str) -> str:
@@ -82,3 +83,29 @@ def test_flexible_auth_accepts_x_goog_api_key(monkeypatch):
             key=None,
         )
     ) == "secret"
+
+
+def test_provider_compatibility_endpoints_return_success(client):
+    for path in (
+        "/credits",
+        "/v1/credits",
+        "/user/info",
+        "/v1/user/info",
+        "/dashboard/billing/credit_grants",
+        "/v1/dashboard/billing/credit_grants",
+    ):
+        response = client.get(path)
+        assert response.status_code == 200, path
+
+
+def test_provider_api_key_alias_matches_primary_key():
+    original = config.api_key
+    try:
+        config.api_key = "han1234"
+        alias = get_provider_api_key_alias(config.api_key)
+        assert alias.startswith("sk-flow2api-")
+        assert AuthManager.verify_api_key("han1234") is True
+        assert AuthManager.verify_api_key(alias) is True
+        assert AuthManager.verify_api_key("sk-flow2api-invalid") is False
+    finally:
+        config.api_key = original
