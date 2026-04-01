@@ -1,21 +1,28 @@
 import json
+import hashlib
 import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path.cwd()
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-
-from src.core.auth import get_provider_api_key_alias
 
 
 BASE_URL = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:38000"
 USERNAME = sys.argv[2] if len(sys.argv) > 2 else "admin"
 PASSWORD = sys.argv[3] if len(sys.argv) > 3 else "admin"
 PUBLIC_BASE_URL = sys.argv[4] if len(sys.argv) > 4 else BASE_URL
+
+
+def get_provider_api_key_alias(api_key: str) -> str:
+    normalized = (api_key or "").strip()
+    if not normalized:
+        return ""
+    digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:32]
+    return f"sk-flow2api-{digest}"
 
 
 def request_json(method: str, path: str, data=None, token: str | None = None):
