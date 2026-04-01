@@ -634,8 +634,13 @@ if [ ! -f config/setting.toml ] && [ -f config/setting_example.toml ]; then
 fi
 
 sudo mkdir -p data tmp
-sudo docker compose down || true
-sudo docker compose up -d
+if [ -f docker-compose.local.yml ]; then
+  sudo docker compose -f docker-compose.local.yml down || true
+  sudo docker compose -f docker-compose.local.yml up -d --build
+else
+  sudo docker compose down || true
+  sudo docker compose up -d
+fi
 sudo docker ps --filter name=flow2api --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
 "@
     Invoke-VMCommand $deployCommand.Trim()
