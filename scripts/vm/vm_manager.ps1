@@ -625,6 +625,11 @@ if [ ! -d "$Flow2APIDir/.git" ]; then
   sudo git clone "$Flow2APIRepo" "$Flow2APIDir"
 else
   cd "$Flow2APIDir"
+  if [ -n "`$(sudo git status --porcelain)" ]; then
+    STASH_NAME="codex-auto-stash-`$(date +%Y%m%d-%H%M%S)"
+    echo "Stashing dirty VM worktree as $STASH_NAME"
+    sudo git stash push --include-untracked -m "$STASH_NAME" || true
+  fi
   sudo git pull --ff-only
 fi
 
