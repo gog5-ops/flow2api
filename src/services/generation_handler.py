@@ -755,6 +755,7 @@ class GenerationHandler:
         images: Optional[List[bytes]] = None,
         project_id: Optional[str] = None,
         reference_media_ids: Optional[List[str]] = None,
+        reference_image_filenames: Optional[List[str]] = None,
         stream: bool = False
     ) -> AsyncGenerator:
         """统一生成入口
@@ -800,6 +801,7 @@ class GenerationHandler:
             "prompt": prompt_for_log,
             "has_images": images is not None and len(images) > 0,
             "reference_media_ids": list(reference_media_ids or []),
+            "reference_image_filenames": list(reference_image_filenames or []),
         }
         debug_logger.log_info(f"[GENERATION] 开始生成 - 模型: {model}, 类型: {generation_type}, Prompt: {prompt[:50]}...")
 
@@ -924,7 +926,7 @@ class GenerationHandler:
             if generation_type == "image":
                 debug_logger.log_info(f"[GENERATION] 开始图片生成流程...")
                 async for chunk in self._handle_image_generation(
-                    token, actual_project_id, model_config, prompt, images, reference_media_ids, stream,
+                    token, actual_project_id, model_config, prompt, images, reference_media_ids, reference_image_filenames, stream,
                     perf_trace=perf_trace,
                     generation_result=generation_result,
                     request_log_state=request_log_state,
@@ -1103,6 +1105,7 @@ class GenerationHandler:
         prompt: str,
         images: Optional[List[bytes]],
         reference_media_ids: Optional[List[str]],
+        reference_image_filenames: Optional[List[str]],
         stream: bool,
         perf_trace: Optional[Dict[str, Any]] = None,
         generation_result: Optional[Dict[str, Any]] = None,
@@ -1149,11 +1152,15 @@ class GenerationHandler:
 
                 # 支持多图输入
                 for idx, image_bytes in enumerate(images):
+                    custom_filename = None
+                    if reference_image_filenames and idx < len(reference_image_filenames):
+                        custom_filename = reference_image_filenames[idx]
                     media_id = await self.flow_client.upload_image(
                         token.at,
                         image_bytes,
                         model_config["aspect_ratio"],
-                        project_id=project_id
+                        project_id=project_id,
+                        upload_file_name=custom_filename
                     )
                     uploaded_input_media_ids.append(media_id)
                     image_inputs.append({

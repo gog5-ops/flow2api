@@ -56,6 +56,7 @@ class NormalizedGenerationRequest:
     project_id: Optional[str] = None
     messages: Optional[List[ChatMessage]] = None
     reference_media_ids: Optional[List[str]] = None
+    reference_image_filenames: Optional[List[str]] = None
 
 
 def set_generation_handler(handler: GenerationHandler):
@@ -392,6 +393,7 @@ async def _normalize_openai_request(
             project_id=request.project_id,
             messages=request.messages,
             reference_media_ids=request.reference_media_ids,
+            reference_image_filenames=request.reference_image_filenames,
         )
 
     if request.contents:
@@ -430,6 +432,7 @@ async def _collect_non_stream_result(
     images: List[bytes],
     project_id: Optional[str] = None,
     reference_media_ids: Optional[List[str]] = None,
+    reference_image_filenames: Optional[List[str]] = None,
 ) -> str:
     handler = _ensure_generation_handler()
     result = None
@@ -439,6 +442,7 @@ async def _collect_non_stream_result(
         images=images if images else None,
         project_id=project_id,
         reference_media_ids=reference_media_ids,
+        reference_image_filenames=reference_image_filenames,
         stream=False,
     ):
         result = chunk
@@ -640,6 +644,7 @@ async def _iterate_openai_stream(
         images=normalized.images if normalized.images else None,
         project_id=normalized.project_id,
         reference_media_ids=normalized.reference_media_ids,
+        reference_image_filenames=normalized.reference_image_filenames,
         stream=True,
     ):
         if chunk.startswith("data: "):
@@ -663,6 +668,7 @@ async def _iterate_gemini_stream(
         images=normalized.images if normalized.images else None,
         project_id=normalized.project_id,
         reference_media_ids=normalized.reference_media_ids,
+        reference_image_filenames=normalized.reference_image_filenames,
         stream=True,
     ):
         if chunk.startswith("data: "):
