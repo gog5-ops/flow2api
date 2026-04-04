@@ -766,7 +766,8 @@ class FlowClient:
         at: str,
         image_bytes: bytes,
         aspect_ratio: str = "IMAGE_ASPECT_RATIO_LANDSCAPE",
-        project_id: Optional[str] = None
+        project_id: Optional[str] = None,
+        upload_file_name: Optional[str] = None
     ) -> str:
         """上传图片,返回mediaId
 
@@ -775,6 +776,7 @@ class FlowClient:
             image_bytes: 图片字节数据
             aspect_ratio: 图片或视频宽高比（会自动转换为图片格式）
             project_id: 项目ID（新上传接口可使用）
+            upload_file_name: 调用方指定的上传文件名（可选）
 
         Returns:
             mediaId
@@ -794,7 +796,11 @@ class FlowClient:
         # 优先尝试新版上传接口: /v1/flow/uploadImage
         # 若失败则自动回退到旧接口,保证兼容
         ext = "png" if "png" in mime_type else "jpg"
-        upload_file_name = f"flow2api_upload_{int(time.time() * 1000)}.{ext}"
+        raw_upload_file_name = (upload_file_name or "").strip()
+        sanitized_upload_file_name = raw_upload_file_name.replace("\\", "/").split("/")[-1]
+        if sanitized_upload_file_name and "." not in sanitized_upload_file_name:
+            sanitized_upload_file_name = f"{sanitized_upload_file_name}.{ext}"
+        upload_file_name = sanitized_upload_file_name or f"flow2api_upload_{int(time.time() * 1000)}.{ext}"
         new_url = f"{self.api_base_url}/flow/uploadImage"
         new_client_context = {
             "tool": "PINHOLE"

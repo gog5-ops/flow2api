@@ -279,6 +279,8 @@ class ChatCompletionRequest(BaseModel):
     model: str
     project_id: Optional[str] = None
     messages: Optional[List[ChatMessage]] = None
+    reference_media_ids: Optional[List[str]] = None
+    reference_image_filenames: Optional[List[str]] = None
     stream: bool = False
     temperature: Optional[float] = None
     max_tokens: Optional[int] = None
