@@ -39,6 +39,11 @@ class LocalBootRequest(BaseModel):
     target_email: str = "kpveoiref@libertystreeteriepa.asia"
     project_id: str = "c6d7cff5-2977-4825-acbe-e978e4addc65"
     disable_other_tokens: bool = True
+    force_bridge_restart: bool = False
+    skip_plugin_sync: bool = False
+    skip_project_context_page: bool = False
+    skip_target_token: bool = False
+    skip_remote_browser_mode: bool = False
     timeout_seconds: int = 300
 
 
