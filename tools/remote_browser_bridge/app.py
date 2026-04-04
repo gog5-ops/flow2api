@@ -154,6 +154,11 @@ async def local_boot(request: LocalBootRequest, authorization: Optional[str] = H
             "target_email": request.target_email,
             "project_id": request.project_id,
             "disable_other_tokens": request.disable_other_tokens,
+            "force_bridge_restart": request.force_bridge_restart,
+            "skip_plugin_sync": request.skip_plugin_sync,
+            "skip_project_context_page": request.skip_project_context_page,
+            "skip_target_token": request.skip_target_token,
+            "skip_remote_browser_mode": request.skip_remote_browser_mode,
         },
         request.timeout_seconds,
     )

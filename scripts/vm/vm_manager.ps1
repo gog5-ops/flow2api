@@ -4,7 +4,7 @@
 
 param (
     [Parameter(Mandatory=$true)]
-    [ValidateSet("Discover", "Status", "CPU", "ChromeDebugInfo", "ChromeDebugAccess", "StartChromeDebugTunnel", "SetupHeadedChromeRemote", "StartChromeWebTunnel", "DeployFlow2APITokenUpdater", "CheckFlow2APITokenSync", "InspectFlow2APITokenState", "SyncFlow2APITokenManager", "SyncFlow2APIProjectBoundRuntime", "RefreshFlow2APIToken", "EnableFlow2APITokens", "SelectFlow2APIToken", "SetFlow2APIPersonalMode", "SetFlow2APIRemoteBrowserMode", "SetupRemoteBrowserHostProxy", "DisableRemoteBrowserHostProxy", "CheckRemoteBrowserTunnelListener", "CheckRemoteBrowserHostProxyListener", "CheckRemoteBrowserBridgeHealth", "CheckRemoteBrowserBridgeConfig", "CheckRemoteBrowserBridge", "SmokeTestFlow2API", "SmokeTestFlow2APIImg2Img", "SmokeTestFlow2APIVideo", "SmokeTestFlow2APIMatrix", "GenerateFlow2APITreeImages", "GenerateFlow2APICatAlienVideo", "HTTPCheck", "CheckFlow2API", "CheckFlow2APIEgress", "ConfigureFlow2APIResidentialProxy", "GetFlow2APIPluginConfig", "GetFlow2APIProviderConfig", "Connect", "InstallChrome", "SetupProxy", "DeployOpenClaw", "StartOpenClaw", "FixUIAuth", "SetupBackup", "BackupManual", "DeploySub2API", "DeployFlow2API", "RestartGrok", "RestartSub")]
+    [ValidateSet("Discover", "Status", "CPU", "ChromeDebugInfo", "ChromeDebugAccess", "StartChromeDebugTunnel", "SetupHeadedChromeRemote", "StartChromeWebTunnel", "DeployFlow2APITokenUpdater", "CheckFlow2APITokenSync", "InspectFlow2APITokenState", "ResetFlow2APITokenErrors", "SyncFlow2APITokenManager", "SyncFlow2APIProjectBoundRuntime", "RefreshFlow2APIToken", "EnableFlow2APITokens", "SelectFlow2APIToken", "SetFlow2APIPersonalMode", "SetFlow2APIRemoteBrowserMode", "SetupRemoteBrowserHostProxy", "DisableRemoteBrowserHostProxy", "CheckRemoteBrowserTunnelListener", "CheckRemoteBrowserHostProxyListener", "CheckRemoteBrowserBridgeHealth", "CheckRemoteBrowserBridgeConfig", "CheckRemoteBrowserBridge", "SmokeTestFlow2API", "SmokeTestFlow2APIImg2Img", "SmokeTestFlow2APIVideo", "SmokeTestFlow2APIMatrix", "GenerateFlow2APITreeImages", "GenerateFlow2APICatAlienVideo", "HTTPCheck", "CheckFlow2API", "CheckFlow2APIEgress", "LogsFlow2API", "ConfigureFlow2APIResidentialProxy", "GetFlow2APIPluginConfig", "GetFlow2APIProviderConfig", "Connect", "InstallChrome", "SetupProxy", "DeployOpenClaw", "StartOpenClaw", "FixUIAuth", "SetupBackup", "BackupManual", "DeploySub2API", "DeployFlow2API", "RestartGrok", "RestartSub")]
     [string]$Action,
 
     [string]$Project = "sfanime",
@@ -299,6 +299,11 @@ function Check-Flow2APIEgress {
     Invoke-VMCommand "curl -fsS https://ipinfo.io/json | head -c 600 && echo"
 }
 
+function Get-Flow2APILogs {
+    Write-Host "--- Flow2API Container Logs ---" -ForegroundColor Cyan
+    Invoke-VMCommand "cd $Flow2APIDir && sudo docker logs --tail 300 flow2api"
+}
+
 function Configure-Flow2APIResidentialProxy {
     Write-Host "Configuring Flow2API to use the residential proxy..." -ForegroundColor Yellow
     Invoke-VMCommand "test -f $Flow2APIDir/data/flow.db"
@@ -336,6 +341,16 @@ function Inspect-Flow2APITokenState {
     Resolve-VMZone | Out-Null
     gcloud compute scp "d:\aitools\gcpvm\flow2api_inspect_token_state.py" "${Instance}:/tmp/flow2api_inspect_token_state.py" --zone=$Zone --project=$Project
     Invoke-VMCommand "python3 /tmp/flow2api_inspect_token_state.py http://127.0.0.1:38000 admin admin /opt/flow2api/data/flow.db"
+}
+
+function Reset-Flow2APITokenErrors {
+    if (-not $TargetEmail) {
+        throw "TargetEmail is required for ResetFlow2APITokenErrors."
+    }
+    Write-Host "Resetting Flow2API token errors: $TargetEmail" -ForegroundColor Yellow
+    Resolve-VMZone | Out-Null
+    gcloud compute scp "d:\aitools\flow2api\scripts\vm\flow2api_reset_token_errors.py" "${Instance}:/tmp/flow2api_reset_token_errors.py" --zone=$Zone --project=$Project
+    Invoke-VMCommand "python3 /tmp/flow2api_reset_token_errors.py http://127.0.0.1:38000 admin admin /opt/flow2api/data/flow.db '$TargetEmail'"
 }
 
 function Sync-Flow2APITokenManager {
@@ -679,6 +694,7 @@ switch ($Action) {
     "DeployFlow2APITokenUpdater" { Deploy-Flow2APITokenUpdater }
     "CheckFlow2APITokenSync" { Check-Flow2APITokenSync }
     "InspectFlow2APITokenState" { Inspect-Flow2APITokenState }
+    "ResetFlow2APITokenErrors" { Reset-Flow2APITokenErrors }
     "SyncFlow2APITokenManager" { Sync-Flow2APITokenManager }
     "SyncFlow2APIProjectBoundRuntime" { Sync-Flow2APIProjectBoundRuntime }
     "RefreshFlow2APIToken" { Refresh-Flow2APIToken }
@@ -702,6 +718,7 @@ switch ($Action) {
     "HTTPCheck"    { Invoke-HTTPCheck }
     "CheckFlow2API" { Check-Flow2API }
     "CheckFlow2APIEgress" { Check-Flow2APIEgress }
+    "LogsFlow2API" { Get-Flow2APILogs }
     "ConfigureFlow2APIResidentialProxy" { Configure-Flow2APIResidentialProxy }
     "GetFlow2APIPluginConfig" { Get-Flow2APIPluginConfig }
     "GetFlow2APIProviderConfig" { Get-Flow2APIProviderConfig }
