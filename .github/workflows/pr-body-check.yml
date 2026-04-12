@@ -1,0 +1,81 @@
+name: PR Body Format Check
+
+# 子仓库 PR 格式校验 — 复制到各子仓库 .github/workflows/pr-body-check.yml
+# 或由 opshub 统一在 sync 时检查
+
+on:
+  pull_request:
+    types: [opened, edited]
+
+jobs:
+  check-body:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR body format
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          REPO: ${{ github.repository }}
+        run: |
+          ERRORS=""
+          WARNINGS=""
+          PASSED=""
+
+          # 1. Check "Closes #N" or "Fixes #N"
+          if echo "$PR_BODY" | grep -qPi '(closes|fixes)\s+#\d+'; then
+            PASSED="$PASSED\n✅ Issue reference found (Closes/Fixes #N)"
+          else
+            ERRORS="$ERRORS\n❌ Missing issue reference. Add \`Closes #N\` to link this PR to an issue."
+          fi
+
+          # 2. Check "parent: gog5-ops/opshub#N" (warning, not blocking)
+          if echo "$PR_BODY" | grep -qP 'parent:\s*gog5-ops/opshub#\d+'; then
+            PASSED="$PASSED\n✅ OpsHub parent reference found"
+          else
+            WARNINGS="$WARNINGS\n⚠️ No \`parent: gog5-ops/opshub#N\` found. Add if this PR relates to an OpsHub issue."
+          fi
+
+          # 3. Check "session_url:" (warning, not blocking)
+          if echo "$PR_BODY" | grep -qP 'session_url:\s*\S+'; then
+            PASSED="$PASSED\n✅ Session URL found"
+          else
+            WARNINGS="$WARNINGS\n⚠️ No \`session_url:\` found. Add the development session link for traceability."
+          fi
+
+          # 4. Check PR targets dev branch (not main)
+          TARGET="${{ github.event.pull_request.base.ref }}"
+          if [ "$TARGET" = "dev" ]; then
+            PASSED="$PASSED\n✅ PR targets dev branch"
+          elif [ "$TARGET" = "main" ]; then
+            WARNINGS="$WARNINGS\n⚠️ PR targets main branch. Usually PRs should target dev."
+          else
+            PASSED="$PASSED\n✅ PR targets $TARGET branch"
+          fi
+
+          # 5. Check commit message format (first commit)
+          # Convention: <type>(<scope>): <summary>
+          TITLE_OK=$(echo "$PR_TITLE" | grep -cP '^(feat|fix|refactor|test|chore|docs|ci)\(.+\):' || true)
+          if [ "$TITLE_OK" -gt 0 ]; then
+            PASSED="$PASSED\n✅ PR title follows conventional format"
+          else
+            WARNINGS="$WARNINGS\n⚠️ PR title doesn't follow \`<type>(<scope>): <summary>\` format"
+          fi
+
+          # Report
+          echo "=== PR Body Check: $REPO#$PR_NUMBER ==="
+          if [ -n "$PASSED" ]; then
+            echo -e "Passed:$PASSED"
+          fi
+          if [ -n "$WARNINGS" ]; then
+            echo -e "Warnings:$WARNINGS"
+          fi
+          if [ -n "$ERRORS" ]; then
+            echo -e "Errors:$ERRORS"
+            echo ""
+            echo "❌ PR body check failed. Please update the PR description."
+            exit 1
+          fi
+
+          echo ""
+          echo "✅ PR body check passed."
