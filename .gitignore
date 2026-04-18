@@ -66,3 +66,4 @@ tmp/
 config/setting.toml
 config/setting_warp.toml
 config/setting_warp_example.toml
+tools/remote_browser_bridge/.venv/

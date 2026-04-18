@@ -55,6 +55,8 @@ class NormalizedGenerationRequest:
     images: List[bytes]
     project_id: Optional[str] = None
     messages: Optional[List[ChatMessage]] = None
+    reference_media_ids: Optional[List[str]] = None
+    reference_image_filenames: Optional[List[str]] = None
 
 
 def set_generation_handler(handler: GenerationHandler):
@@ -390,6 +392,8 @@ async def _normalize_openai_request(
             images=images,
             project_id=request.project_id,
             messages=request.messages,
+            reference_media_ids=request.reference_media_ids,
+            reference_image_filenames=request.reference_image_filenames,
         )
 
     if request.contents:
@@ -427,6 +431,8 @@ async def _collect_non_stream_result(
     prompt: str,
     images: List[bytes],
     project_id: Optional[str] = None,
+    reference_media_ids: Optional[List[str]] = None,
+    reference_image_filenames: Optional[List[str]] = None,
 ) -> str:
     handler = _ensure_generation_handler()
     result = None
@@ -435,6 +441,8 @@ async def _collect_non_stream_result(
         prompt=prompt,
         images=images if images else None,
         project_id=project_id,
+        reference_media_ids=reference_media_ids,
+        reference_image_filenames=reference_image_filenames,
         stream=False,
     ):
         result = chunk
@@ -635,6 +643,8 @@ async def _iterate_openai_stream(
         prompt=normalized.prompt,
         images=normalized.images if normalized.images else None,
         project_id=normalized.project_id,
+        reference_media_ids=normalized.reference_media_ids,
+        reference_image_filenames=normalized.reference_image_filenames,
         stream=True,
     ):
         if chunk.startswith("data: "):
@@ -657,6 +667,8 @@ async def _iterate_gemini_stream(
         prompt=normalized.prompt,
         images=normalized.images if normalized.images else None,
         project_id=normalized.project_id,
+        reference_media_ids=normalized.reference_media_ids,
+        reference_image_filenames=normalized.reference_image_filenames,
         stream=True,
     ):
         if chunk.startswith("data: "):
@@ -804,6 +816,7 @@ async def create_chat_completion(
                 normalized.prompt,
                 normalized.images,
                 normalized.project_id,
+                normalized.reference_media_ids,
             )
         )
         return _build_openai_json_response(payload)
@@ -833,6 +846,7 @@ async def generate_content(
                 normalized.prompt,
                 normalized.images,
                 normalized.project_id,
+                normalized.reference_media_ids,
             )
         )
         if "error" in payload:
